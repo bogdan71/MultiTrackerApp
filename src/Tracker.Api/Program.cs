@@ -6,6 +6,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
 builder.Services.AddDbContext<TrackerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("TrackerDb")
         ?? "Data Source=tracker.db"));

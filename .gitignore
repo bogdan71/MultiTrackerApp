@@ -123,3 +123,11 @@ yarn-error.log
 
 # Thumbnails
 Thumbs.db
+
+# Aspire
+.aspire/
+
+# SQLite
+*.db-shm
+*.db-wal
+
