@@ -40,5 +40,7 @@ app.MapMovieEndpoints();
 app.MapSongEndpoints();
 app.MapTodoEndpoints();
 app.MapDashboardEndpoints();
+app.MapCategoryEndpoints();
+app.MapItemEndpoints();
 
 app.Run();

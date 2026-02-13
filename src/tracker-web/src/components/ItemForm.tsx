@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { TrackingStatus, Priority } from '../types';
+
 
 export interface FormField {
     name: string;

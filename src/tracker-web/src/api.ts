@@ -44,4 +44,16 @@ export const api = {
 
     // Dashboard
     getDashboard: () => request<any>('/dashboard'),
+
+    // Categories
+    getCategories: () => request<any[]>('/categories'),
+    createCategory: (data: any) => request<any>('/categories', { method: 'POST', body: JSON.stringify(data) }),
+    deleteCategory: (id: number) => request<void>(`/categories/${id}`, { method: 'DELETE' }),
+    getCategory: (slug: string) => request<any>(`/categories/${slug}`),
+
+    // Items
+    getItems: (slug: string) => request<any[]>(`/categories/${slug}/items`),
+    createItem: (slug: string, data: any) => request<any>(`/categories/${slug}/items`, { method: 'POST', body: JSON.stringify(data) }),
+    updateItem: (slug: string, id: number, data: any) => request<void>(`/categories/${slug}/items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteItem: (slug: string, id: number) => request<void>(`/categories/${slug}/items/${id}`, { method: 'DELETE' }),
 };

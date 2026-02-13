@@ -59,6 +59,22 @@ export function Dashboard() {
                     <div className="stat-value">{data.summary.todos.pending}</div>
                     <div className="stat-label">Pending Todos</div>
                 </div>
+                {/* Dynamic Categories Stats */}
+                {data.summary.categories?.map(cat => (
+                    <div key={cat.slug} className="card stat-card" style={{ position: 'relative' }}>
+                        <div className="stat-icon">{cat.icon || '📁'}</div>
+                        <div className="stat-value">{cat.count}</div>
+                        <div className="stat-label">{cat.name}</div>
+                        <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '2px',
+                            background: 'linear-gradient(90deg, var(--accent-blue), var(--accent-purple))'
+                        }} />
+                    </div>
+                ))}
             </div>
 
             <div className="dashboard-sections">
@@ -100,6 +116,20 @@ export function Dashboard() {
                                 <div className="section-item-sub">{s.artist}{s.releaseDate ? ` • ${s.releaseDate}` : ''}</div>
                             </div>
                             <span className="badge badge-upcoming">Upcoming</span>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="dashboard-section">
+                    <h3>🆕 Recent Items</h3>
+                    {(!data.upcoming.recentItems || data.upcoming.recentItems.length === 0) && <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>No recent items</p>}
+                    {data.upcoming.recentItems?.map(i => (
+                        <div key={i.id} className="section-item">
+                            <div>
+                                <div className="section-item-title">{i.title}</div>
+                                <div className="section-item-sub">{i.categoryName} • {new Date(i.createdAt).toLocaleDateString()}</div>
+                            </div>
+                            <span className="badge badge-genre">{i.status}</span>
                         </div>
                     ))}
                 </div>

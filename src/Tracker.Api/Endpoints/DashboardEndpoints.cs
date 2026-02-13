@@ -25,6 +25,31 @@ public static class DashboardEndpoints
                 HighPriority = await db.TodoItems.CountAsync(t => !t.IsCompleted && t.Priority >= Models.Priority.High)
             };
 
+            // Dynamic Categories Stats
+            var categories = await db.Categories.Select(c => new
+            {
+                c.Name,
+                c.Icon,
+                c.Slug,
+                Count = db.Items.Count(i => i.CategoryId == c.Id)
+            }).ToListAsync();
+
+            // Recent Dynamic Items
+            var recentItems = await db.Items
+                .Include(i => i.Category)
+                .OrderByDescending(i => i.CreatedAt)
+                .Take(5)
+                .Select(i => new
+                {
+                    i.Id,
+                    i.Title,
+                    i.Status,
+                    CategoryName = i.Category!.Name,
+                    CategorySlug = i.Category.Slug,
+                    i.CreatedAt
+                })
+                .ToListAsync();
+
             var upcomingBooks = await db.Books.Where(b => b.Status == Models.TrackingStatus.Upcoming)
                 .OrderBy(b => b.ReleaseDate).Take(5).ToListAsync();
             var upcomingMovies = await db.Movies.Where(m => m.Status == Models.TrackingStatus.Upcoming)
@@ -36,8 +61,8 @@ public static class DashboardEndpoints
 
             return Results.Ok(new
             {
-                Summary = new { Books = books, Movies = movies, Songs = songs, Todos = todos },
-                Upcoming = new { Books = upcomingBooks, Movies = upcomingMovies, Songs = upcomingSongs },
+                Summary = new { Books = books, Movies = movies, Songs = songs, Todos = todos, Categories = categories },
+                Upcoming = new { Books = upcomingBooks, Movies = upcomingMovies, Songs = upcomingSongs, RecentItems = recentItems },
                 PendingTodos = pendingTodos
             });
         });

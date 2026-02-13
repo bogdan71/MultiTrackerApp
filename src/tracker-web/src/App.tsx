@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
 import { Dashboard } from './pages/Dashboard';
@@ -5,8 +6,28 @@ import { BooksPage } from './pages/BooksPage';
 import { MoviesPage } from './pages/MoviesPage';
 import { SongsPage } from './pages/SongsPage';
 import { TodosPage } from './pages/TodosPage';
+import { DynamicCategoryPage } from './pages/DynamicCategoryPage';
+import { CreateCategoryModal } from './components/CreateCategoryModal';
+import { api } from './api';
+import type { Category } from './types';
 
 function App() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  async function loadCategories() {
+    try {
+      const data = await api.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to load categories', error);
+    }
+  }
+
   return (
     <ToastProvider>
       <BrowserRouter>
@@ -37,6 +58,19 @@ function App() {
                 <span className="nav-icon">✅</span>
                 <span>Todos</span>
               </NavLink>
+
+              <div className="nav-divider"></div>
+
+              {categories.map(cat => (
+                <NavLink key={cat.id} to={`/category/${cat.slug}`}>
+                  <span className="nav-icon">{cat.icon || '📁'}</span>
+                  <span>{cat.name}</span>
+                </NavLink>
+              ))}
+
+              <button className="add-category-btn" onClick={() => setIsModalOpen(true)}>
+                + Add Category
+              </button>
             </nav>
           </aside>
           <main className="main-content">
@@ -46,9 +80,15 @@ function App() {
               <Route path="/movies" element={<MoviesPage />} />
               <Route path="/songs" element={<SongsPage />} />
               <Route path="/todos" element={<TodosPage />} />
+              <Route path="/category/:slug" element={<DynamicCategoryPage />} />
             </Routes>
           </main>
         </div>
+        <CreateCategoryModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreated={loadCategories}
+        />
       </BrowserRouter>
     </ToastProvider>
   );

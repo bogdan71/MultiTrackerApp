@@ -9,6 +9,8 @@ public class TrackerDbContext(DbContextOptions<TrackerDbContext> options) : DbCo
     public DbSet<Movie> Movies => Set<Movie>();
     public DbSet<Song> Songs => Set<Song>();
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Item> Items => Set<Item>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +42,24 @@ public class TrackerDbContext(DbContextOptions<TrackerDbContext> options) : DbCo
             e.Property(x => x.Priority).HasConversion<string>();
         });
 
+        modelBuilder.Entity<Category>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Slug).IsUnique();
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Slug).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Item>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            e.HasOne(x => x.Category)
+                .WithMany()
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         SeedData(modelBuilder);
     }
 
@@ -67,6 +87,16 @@ public class TrackerDbContext(DbContextOptions<TrackerDbContext> options) : DbCo
             new TodoItem { Id = 1, Title = "Set up home theater for Avatar 3", Description = "Buy new speakers and calibrate display", DueDate = new DateOnly(2026, 12, 1), Priority = Priority.High, Category = "Entertainment" },
             new TodoItem { Id = 2, Title = "Pre-order The Winds of Winter", DueDate = new DateOnly(2026, 11, 1), Priority = Priority.Medium, Category = "Books" },
             new TodoItem { Id = 3, Title = "Create Spotify playlist for new releases", Priority = Priority.Low, IsCompleted = true, Category = "Music" }
+        );
+
+        modelBuilder.Entity<Category>().HasData(
+            new Category { Id = 1, Name = "Apps", Slug = "apps", Icon = "📱", Description = "Software applications and tools" },
+            new Category { Id = 2, Name = "Gadgets", Slug = "gadgets", Icon = "⌚", Description = "Hardware devices and tech" }
+        );
+
+        modelBuilder.Entity<Item>().HasData(
+            new Item { Id = 1, CategoryId = 1, Title = "Visual Studio Code", Description = "Code editor", Status = "Installed", Properties = "{\"Platform\":\"Cross-platform\"}" },
+            new Item { Id = 2, CategoryId = 1, Title = "Spotify", Description = "Music streaming", Status = "Installed", Properties = "{\"Platform\":\"Desktop\"}" }
         );
     }
 }
