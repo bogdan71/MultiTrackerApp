@@ -44,3 +44,5 @@ app.MapCategoryEndpoints();
 app.MapItemEndpoints();
 
 app.Run();
+
+public partial class Program { }

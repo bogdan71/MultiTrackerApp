@@ -1,6 +1,43 @@
 @Tracker.Api_HostAddress = http://localhost:5041
 
-GET {{Tracker.Api_HostAddress}}/weatherforecast/
+### Get All Categories
+GET {{Tracker.Api_HostAddress}}/api/categories
 Accept: application/json
 
-###
+### Create New Category (Board Games)
+POST {{Tracker.Api_HostAddress}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Board Games",
+  "slug": "board-games",
+  "icon": "🎲",
+  "description": "Tabletop games"
+}
+
+### Get Items for Category
+GET {{Tracker.Api_HostAddress}}/api/categories/apps/items
+Accept: application/json
+
+### Create New Item
+POST {{Tracker.Api_HostAddress}}/api/categories/apps/items
+Content-Type: application/json
+
+{
+  "title": "Obsidian",
+  "description": "Note taking app",
+  "status": "Installed",
+  "properties": "{\"Platform\":\"Desktop\"}"
+}
+
+### Get Dashboard
+GET {{Tracker.Api_HostAddress}}/api/dashboard
+Accept: application/json
+
+### Get Books
+GET {{Tracker.Api_HostAddress}}/api/books
+Accept: application/json
+
+### Get Todos
+GET {{Tracker.Api_HostAddress}}/api/todos
+Accept: application/json
