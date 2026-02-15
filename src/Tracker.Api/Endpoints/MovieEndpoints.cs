@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Tracker.Api.Data;
 using Tracker.Api.Models;
@@ -8,11 +9,12 @@ public static class MovieEndpoints
 {
     public static RouteGroupBuilder MapMovieEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/movies").WithTags("Movies");
+        var group = app.MapGroup("/api/movies").WithTags("Movies").RequireAuthorization();
 
-        group.MapGet("/", async (TrackerDbContext db, string? status, string? genre) =>
+        group.MapGet("/", async (HttpContext http, TrackerDbContext db, string? status, string? genre) =>
         {
-            var query = db.Movies.AsQueryable();
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var query = db.Movies.Where(m => m.UserId == userId);
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<TrackingStatus>(status, true, out var s))
                 query = query.Where(m => m.Status == s);
             if (!string.IsNullOrEmpty(genre))
@@ -20,14 +22,17 @@ public static class MovieEndpoints
             return Results.Ok(await query.OrderByDescending(m => m.CreatedAt).ToListAsync());
         });
 
-        group.MapGet("/{id:int}", async (int id, TrackerDbContext db) =>
+        group.MapGet("/{id:int}", async (int id, HttpContext http, TrackerDbContext db) =>
         {
-            var movie = await db.Movies.FindAsync(id);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var movie = await db.Movies.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
             return movie is not null ? Results.Ok(movie) : Results.NotFound();
         });
 
-        group.MapPost("/", async (Movie movie, TrackerDbContext db) =>
+        group.MapPost("/", async (Movie movie, HttpContext http, TrackerDbContext db) =>
         {
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            movie.UserId = userId;
             movie.CreatedAt = DateTime.UtcNow;
             movie.UpdatedAt = DateTime.UtcNow;
             db.Movies.Add(movie);
@@ -35,9 +40,10 @@ public static class MovieEndpoints
             return Results.Created($"/api/movies/{movie.Id}", movie);
         });
 
-        group.MapPut("/{id:int}", async (int id, Movie input, TrackerDbContext db) =>
+        group.MapPut("/{id:int}", async (int id, Movie input, HttpContext http, TrackerDbContext db) =>
         {
-            var movie = await db.Movies.FindAsync(id);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var movie = await db.Movies.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
             if (movie is null) return Results.NotFound();
 
             movie.Title = input.Title;
@@ -52,9 +58,10 @@ public static class MovieEndpoints
             return Results.Ok(movie);
         });
 
-        group.MapDelete("/{id:int}", async (int id, TrackerDbContext db) =>
+        group.MapDelete("/{id:int}", async (int id, HttpContext http, TrackerDbContext db) =>
         {
-            var movie = await db.Movies.FindAsync(id);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var movie = await db.Movies.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
             if (movie is null) return Results.NotFound();
             db.Movies.Remove(movie);
             await db.SaveChangesAsync();

@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +47,30 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
     }
 
+    /// <summary>
+    /// Creates an HttpClient that is authenticated as a test user.
+    /// Registers and logs in automatically, returning a client with Bearer token set.
+    /// </summary>
+    public async Task<HttpClient> CreateAuthenticatedClientAsync(
+        string email = "test@example.com",
+        string password = "TestPass123!")
+    {
+        var client = CreateClient();
+
+        // Register the user (ignore if already exists)
+        await client.PostAsJsonAsync("/api/register", new { email, password });
+
+        // Login to get the token
+        var loginResponse = await client.PostAsJsonAsync("/api/login", new { email, password });
+        loginResponse.EnsureSuccessStatusCode();
+
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>(TestJsonOptions.Default);
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResult!.AccessToken);
+
+        return client;
+    }
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
@@ -54,4 +79,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             try { File.Delete(_dbPath); } catch { /* best effort cleanup */ }
         }
     }
+
+    private record LoginResponse(string TokenType, string AccessToken, int ExpiresIn, string RefreshToken);
 }

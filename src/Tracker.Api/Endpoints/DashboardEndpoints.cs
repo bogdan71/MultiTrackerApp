@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Tracker.Api.Data;
 
@@ -7,26 +8,28 @@ public static class DashboardEndpoints
 {
     public static RouteGroupBuilder MapDashboardEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/dashboard").WithTags("Dashboard");
+        var group = app.MapGroup("/api/dashboard").WithTags("Dashboard").RequireAuthorization();
 
-        group.MapGet("/", async (TrackerDbContext db) =>
+        group.MapGet("/", async (HttpContext http, TrackerDbContext db) =>
         {
-            var books = await db.Books.GroupBy(b => b.Status)
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+            var books = await db.Books.Where(b => b.UserId == userId).GroupBy(b => b.Status)
                 .Select(g => new { Status = g.Key.ToString(), Count = g.Count() }).ToListAsync();
-            var movies = await db.Movies.GroupBy(m => m.Status)
+            var movies = await db.Movies.Where(m => m.UserId == userId).GroupBy(m => m.Status)
                 .Select(g => new { Status = g.Key.ToString(), Count = g.Count() }).ToListAsync();
-            var songs = await db.Songs.GroupBy(s => s.Status)
+            var songs = await db.Songs.Where(s => s.UserId == userId).GroupBy(s => s.Status)
                 .Select(g => new { Status = g.Key.ToString(), Count = g.Count() }).ToListAsync();
             var todos = new
             {
-                Total = await db.TodoItems.CountAsync(),
-                Completed = await db.TodoItems.CountAsync(t => t.IsCompleted),
-                Pending = await db.TodoItems.CountAsync(t => !t.IsCompleted),
-                HighPriority = await db.TodoItems.CountAsync(t => !t.IsCompleted && t.Priority >= Models.Priority.High)
+                Total = await db.TodoItems.CountAsync(t => t.UserId == userId),
+                Completed = await db.TodoItems.CountAsync(t => t.UserId == userId && t.IsCompleted),
+                Pending = await db.TodoItems.CountAsync(t => t.UserId == userId && !t.IsCompleted),
+                HighPriority = await db.TodoItems.CountAsync(t => t.UserId == userId && !t.IsCompleted && t.Priority >= Models.Priority.High)
             };
 
             // Dynamic Categories Stats
-            var categories = await db.Categories.Select(c => new
+            var categories = await db.Categories.Where(c => c.UserId == userId).Select(c => new
             {
                 c.Name,
                 c.Icon,
@@ -37,6 +40,7 @@ public static class DashboardEndpoints
             // Recent Dynamic Items
             var recentItems = await db.Items
                 .Include(i => i.Category)
+                .Where(i => i.Category!.UserId == userId)
                 .OrderByDescending(i => i.CreatedAt)
                 .Take(5)
                 .Select(i => new
@@ -50,13 +54,13 @@ public static class DashboardEndpoints
                 })
                 .ToListAsync();
 
-            var upcomingBooks = await db.Books.Where(b => b.Status == Models.TrackingStatus.Upcoming)
+            var upcomingBooks = await db.Books.Where(b => b.UserId == userId && b.Status == Models.TrackingStatus.Upcoming)
                 .OrderBy(b => b.ReleaseDate).Take(5).ToListAsync();
-            var upcomingMovies = await db.Movies.Where(m => m.Status == Models.TrackingStatus.Upcoming)
+            var upcomingMovies = await db.Movies.Where(m => m.UserId == userId && m.Status == Models.TrackingStatus.Upcoming)
                 .OrderBy(m => m.ReleaseDate).Take(5).ToListAsync();
-            var upcomingSongs = await db.Songs.Where(s => s.Status == Models.TrackingStatus.Upcoming)
+            var upcomingSongs = await db.Songs.Where(s => s.UserId == userId && s.Status == Models.TrackingStatus.Upcoming)
                 .OrderBy(s => s.ReleaseDate).Take(5).ToListAsync();
-            var pendingTodos = await db.TodoItems.Where(t => !t.IsCompleted)
+            var pendingTodos = await db.TodoItems.Where(t => t.UserId == userId && !t.IsCompleted)
                 .OrderByDescending(t => t.Priority).Take(5).ToListAsync();
 
             return Results.Ok(new

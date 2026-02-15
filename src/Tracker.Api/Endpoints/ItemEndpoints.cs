@@ -1,4 +1,4 @@
-
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Tracker.Api.Data;
 using Tracker.Api.Models;
@@ -9,11 +9,12 @@ public static class ItemEndpoints
 {
     public static void MapItemEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/categories/{slug}/items");
+        var group = app.MapGroup("/api/categories/{slug}/items").RequireAuthorization();
 
-        group.MapGet("/", async (string slug, TrackerDbContext db) =>
+        group.MapGet("/", async (string slug, HttpContext http, TrackerDbContext db) =>
         {
-            var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug && c.UserId == userId);
             if (category == null) return Results.NotFound("Category not found");
 
             var items = await db.Items
@@ -23,9 +24,10 @@ public static class ItemEndpoints
             return Results.Ok(items);
         });
 
-        group.MapPost("/", async (string slug, Item item, TrackerDbContext db) =>
+        group.MapPost("/", async (string slug, Item item, HttpContext http, TrackerDbContext db) =>
         {
-            var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug && c.UserId == userId);
             if (category == null) return Results.NotFound("Category not found");
 
             item.CategoryId = category.Id;
@@ -34,9 +36,10 @@ public static class ItemEndpoints
             return Results.Created($"/api/categories/{slug}/items/{item.Id}", item);
         });
 
-        group.MapPut("/{id}", async (string slug, int id, Item updatedItem, TrackerDbContext db) =>
+        group.MapPut("/{id}", async (string slug, int id, Item updatedItem, HttpContext http, TrackerDbContext db) =>
         {
-             var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug && c.UserId == userId);
             if (category == null) return Results.NotFound("Category not found");
 
             var item = await db.Items.FindAsync(id);
@@ -52,9 +55,10 @@ public static class ItemEndpoints
             return Results.NoContent();
         });
 
-        group.MapDelete("/{id}", async (string slug, int id, TrackerDbContext db) =>
+        group.MapDelete("/{id}", async (string slug, int id, HttpContext http, TrackerDbContext db) =>
         {
-             var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var category = await db.Categories.FirstOrDefaultAsync(c => c.Slug == slug && c.UserId == userId);
             if (category == null) return Results.NotFound("Category not found");
 
             var item = await db.Items.FindAsync(id);

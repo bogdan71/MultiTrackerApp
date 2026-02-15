@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { AuthProvider, useAuth } from './components/AuthContext';
 import { ToastProvider } from './components/Toast';
 import { Dashboard } from './pages/Dashboard';
 import { BooksPage } from './pages/BooksPage';
@@ -8,10 +9,12 @@ import { SongsPage } from './pages/SongsPage';
 import { TodosPage } from './pages/TodosPage';
 import { DynamicCategoryPage } from './pages/DynamicCategoryPage';
 import { CreateCategoryModal } from './components/CreateCategoryModal';
+import { LoginPage } from './pages/LoginPage';
 import { api } from './api';
 import type { Category } from './types';
 
-function App() {
+function AuthenticatedApp() {
+  const { user, logout } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -29,68 +32,100 @@ function App() {
   }
 
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <div className="app-layout">
-          <aside className="sidebar">
-            <div className="sidebar-logo">
-              <div className="logo-icon">🚀</div>
-              <h1>Tracker</h1>
-            </div>
-            <nav className="sidebar-nav">
-              <NavLink to="/" end>
-                <span className="nav-icon">📊</span>
-                <span>Dashboard</span>
-              </NavLink>
-              <NavLink to="/books">
-                <span className="nav-icon">📚</span>
-                <span>Books</span>
-              </NavLink>
-              <NavLink to="/movies">
-                <span className="nav-icon">🎬</span>
-                <span>Movies</span>
-              </NavLink>
-              <NavLink to="/songs">
-                <span className="nav-icon">🎵</span>
-                <span>Songs</span>
-              </NavLink>
-              <NavLink to="/todos">
-                <span className="nav-icon">✅</span>
-                <span>Todos</span>
-              </NavLink>
+    <BrowserRouter>
+      <div className="app-layout">
+        <aside className="sidebar">
+          <div className="sidebar-logo">
+            <div className="logo-icon">🚀</div>
+            <h1>Tracker</h1>
+          </div>
+          <nav className="sidebar-nav">
+            <NavLink to="/" end>
+              <span className="nav-icon">📊</span>
+              <span>Dashboard</span>
+            </NavLink>
+            <NavLink to="/books">
+              <span className="nav-icon">📚</span>
+              <span>Books</span>
+            </NavLink>
+            <NavLink to="/movies">
+              <span className="nav-icon">🎬</span>
+              <span>Movies</span>
+            </NavLink>
+            <NavLink to="/songs">
+              <span className="nav-icon">🎵</span>
+              <span>Songs</span>
+            </NavLink>
+            <NavLink to="/todos">
+              <span className="nav-icon">✅</span>
+              <span>Todos</span>
+            </NavLink>
 
-              <div className="nav-divider"></div>
+            <div className="nav-divider"></div>
 
-              {categories.map(cat => (
-                <NavLink key={cat.id} to={`/category/${cat.slug}`}>
-                  <span className="nav-icon">{cat.icon || '📁'}</span>
-                  <span>{cat.name}</span>
-                </NavLink>
-              ))}
+            {categories.map(cat => (
+              <NavLink key={cat.id} to={`/category/${cat.slug}`}>
+                <span className="nav-icon">{cat.icon || '📁'}</span>
+                <span>{cat.name}</span>
+              </NavLink>
+            ))}
 
-              <button className="add-category-btn" onClick={() => setIsModalOpen(true)}>
-                + Add Category
-              </button>
-            </nav>
-          </aside>
-          <main className="main-content">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/books" element={<BooksPage />} />
-              <Route path="/movies" element={<MoviesPage />} />
-              <Route path="/songs" element={<SongsPage />} />
-              <Route path="/todos" element={<TodosPage />} />
-              <Route path="/category/:slug" element={<DynamicCategoryPage />} />
-            </Routes>
-          </main>
+            <button className="add-category-btn" onClick={() => setIsModalOpen(true)}>
+              + Add Category
+            </button>
+          </nav>
+          <div className="sidebar-user">
+            <span className="user-email" title={user?.email}>{user?.email}</span>
+            <button className="logout-btn" onClick={logout}>Sign Out</button>
+          </div>
+        </aside>
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/books" element={<BooksPage />} />
+            <Route path="/movies" element={<MoviesPage />} />
+            <Route path="/songs" element={<SongsPage />} />
+            <Route path="/todos" element={<TodosPage />} />
+            <Route path="/category/:slug" element={<DynamicCategoryPage />} />
+          </Routes>
+        </main>
+      </div>
+      <CreateCategoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreated={loadCategories}
+      />
+    </BrowserRouter>
+  );
+}
+
+function AppContent() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <div className="login-header">
+            <div className="login-logo">🚀</div>
+            <h1>Tracker</h1>
+            <p>Loading...</p>
+          </div>
         </div>
-        <CreateCategoryModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onCreated={loadCategories}
-        />
-      </BrowserRouter>
-    </ToastProvider>
+      </div>
+    );
+  }
+
+  return user ? <AuthenticatedApp /> : <LoginPage />;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </AuthProvider>
   );
 }
 

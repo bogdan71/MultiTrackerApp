@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Tracker.Api.Data;
 using Tracker.Api.Models;
@@ -8,11 +9,12 @@ public static class BookEndpoints
 {
     public static RouteGroupBuilder MapBookEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/books").WithTags("Books");
+        var group = app.MapGroup("/api/books").WithTags("Books").RequireAuthorization();
 
-        group.MapGet("/", async (TrackerDbContext db, string? status, string? genre) =>
+        group.MapGet("/", async (HttpContext http, TrackerDbContext db, string? status, string? genre) =>
         {
-            var query = db.Books.AsQueryable();
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var query = db.Books.Where(b => b.UserId == userId);
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<TrackingStatus>(status, true, out var s))
                 query = query.Where(b => b.Status == s);
             if (!string.IsNullOrEmpty(genre))
@@ -20,14 +22,17 @@ public static class BookEndpoints
             return Results.Ok(await query.OrderByDescending(b => b.CreatedAt).ToListAsync());
         });
 
-        group.MapGet("/{id:int}", async (int id, TrackerDbContext db) =>
+        group.MapGet("/{id:int}", async (int id, HttpContext http, TrackerDbContext db) =>
         {
-            var book = await db.Books.FindAsync(id);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var book = await db.Books.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
             return book is not null ? Results.Ok(book) : Results.NotFound();
         });
 
-        group.MapPost("/", async (Book book, TrackerDbContext db) =>
+        group.MapPost("/", async (Book book, HttpContext http, TrackerDbContext db) =>
         {
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            book.UserId = userId;
             book.CreatedAt = DateTime.UtcNow;
             book.UpdatedAt = DateTime.UtcNow;
             db.Books.Add(book);
@@ -35,9 +40,10 @@ public static class BookEndpoints
             return Results.Created($"/api/books/{book.Id}", book);
         });
 
-        group.MapPut("/{id:int}", async (int id, Book input, TrackerDbContext db) =>
+        group.MapPut("/{id:int}", async (int id, Book input, HttpContext http, TrackerDbContext db) =>
         {
-            var book = await db.Books.FindAsync(id);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var book = await db.Books.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
             if (book is null) return Results.NotFound();
 
             book.Title = input.Title;
@@ -52,9 +58,10 @@ public static class BookEndpoints
             return Results.Ok(book);
         });
 
-        group.MapDelete("/{id:int}", async (int id, TrackerDbContext db) =>
+        group.MapDelete("/{id:int}", async (int id, HttpContext http, TrackerDbContext db) =>
         {
-            var book = await db.Books.FindAsync(id);
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var book = await db.Books.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
             if (book is null) return Results.NotFound();
             db.Books.Remove(book);
             await db.SaveChangesAsync();

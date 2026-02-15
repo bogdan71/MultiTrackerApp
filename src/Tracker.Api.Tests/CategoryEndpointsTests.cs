@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Tracker.Api.Models;
 
 namespace Tracker.Api.Tests;
@@ -11,84 +12,64 @@ public class CategoryEndpointsTests
     private static HttpClient _client = null!;
 
     [ClassInitialize]
-    public static void ClassInit(TestContext context)
+    public static async Task ClassInit(TestContext context)
     {
         _factory = new CustomWebApplicationFactory();
-        _client = _factory.CreateClient();
+        _client = await _factory.CreateAuthenticatedClientAsync("cattest@example.com", "TestPass123!");
     }
 
     [ClassCleanup]
-    public static void ClassCleanup()
+    public static void ClassCleanup() => _factory.Dispose();
+
+    [TestMethod]
+    public async Task Unauthenticated_Returns401()
     {
-        _client.Dispose();
-        _factory.Dispose();
+        var unauthClient = _factory.CreateClient();
+        var response = await unauthClient.GetAsync("/api/categories");
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task GetAll_ReturnsOkWithCategories()
+    public async Task GetAll_ReturnsList()
     {
-        var response = await _client.GetAsync("/api/categories");
-        response.EnsureSuccessStatusCode();
-
-        var categories = await response.Content.ReadFromJsonAsync<List<Category>>(TestJsonOptions.Default);
+        var categories = await _client.GetFromJsonAsync<Category[]>("/api/categories", TestJsonOptions.Default);
         Assert.IsNotNull(categories);
-        Assert.IsTrue(categories.Count >= 2, "Should have at least the 2 seeded categories");
     }
 
     [TestMethod]
-    public async Task GetBySlug_ExistingCategory_ReturnsOk()
+    public async Task CreateAndGetBySlug_ReturnsCategory()
     {
-        var response = await _client.GetAsync("/api/categories/apps");
-        response.EnsureSuccessStatusCode();
-
-        var category = await response.Content.ReadFromJsonAsync<Category>(TestJsonOptions.Default);
-        Assert.IsNotNull(category);
-        Assert.AreEqual("Apps", category.Name);
-        Assert.AreEqual("apps", category.Slug);
-    }
-
-    [TestMethod]
-    public async Task GetBySlug_NonExistent_ReturnsNotFound()
-    {
-        var response = await _client.GetAsync("/api/categories/nonexistent-slug");
-        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task Create_ReturnsCreated()
-    {
-        var newCategory = new Category
-        {
-            Name = "Games",
-            Slug = "games",
-            Icon = "🎮",
-            Description = "Video games"
-        };
-
-        var response = await _client.PostAsJsonAsync("/api/categories", newCategory, TestJsonOptions.Default);
+        var response = await _client.PostAsJsonAsync("/api/categories", new { Name = "My Category", Slug = "my-category", Icon = "📁" });
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
 
         var created = await response.Content.ReadFromJsonAsync<Category>(TestJsonOptions.Default);
-        Assert.IsNotNull(created);
-        Assert.AreEqual("Games", created.Name);
-        Assert.AreEqual("games", created.Slug);
+        Assert.AreEqual("My Category", created!.Name);
+
+        var fetched = await _client.GetFromJsonAsync<Category>($"/api/categories/{created.Slug}", TestJsonOptions.Default);
+        Assert.AreEqual("My Category", fetched!.Name);
     }
 
     [TestMethod]
     public async Task Delete_ExistingCategory_ReturnsNoContent()
     {
-        var newCategory = new Category { Name = "Temp", Slug = "temp-delete" };
-        var createResponse = await _client.PostAsJsonAsync("/api/categories", newCategory, TestJsonOptions.Default);
-        var created = await createResponse.Content.ReadFromJsonAsync<Category>(TestJsonOptions.Default);
+        var createResp = await _client.PostAsJsonAsync("/api/categories", new { Name = "Delete Cat", Slug = "delete-cat" });
+        var created = await createResp.Content.ReadFromJsonAsync<Category>(TestJsonOptions.Default);
 
-        var response = await _client.DeleteAsync($"/api/categories/{created!.Id}");
-        Assert.AreEqual(HttpStatusCode.NoContent, response.StatusCode);
+        var deleteResp = await _client.DeleteAsync($"/api/categories/{created!.Id}");
+        Assert.AreEqual(HttpStatusCode.NoContent, deleteResp.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetBySlug_NonExistent_ReturnsNotFound()
+    {
+        var response = await _client.GetAsync("/api/categories/non-existent-slug");
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
     public async Task Delete_NonExistent_ReturnsNotFound()
     {
-        var response = await _client.DeleteAsync("/api/categories/9999");
+        var response = await _client.DeleteAsync("/api/categories/99999");
         Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

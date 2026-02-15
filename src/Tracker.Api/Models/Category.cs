@@ -20,4 +20,6 @@ public class Category
 
     [MaxLength(500)]
     public string? Description { get; set; }
+
+    public string UserId { get; set; } = string.Empty;
 }

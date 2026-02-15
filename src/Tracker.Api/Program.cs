@@ -1,6 +1,9 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Tracker.Api.Data;
 using Tracker.Api.Endpoints;
+using Tracker.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +17,10 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 builder.Services.AddDbContext<TrackerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("TrackerDb")
         ?? "Data Source=tracker.db"));
+
+builder.Services.AddAuthorization();
+builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
+    .AddEntityFrameworkStores<TrackerDbContext>();
 
 builder.Services.AddCors(options =>
 {
@@ -33,7 +40,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
+
+// Identity endpoints (register, login, refresh, etc.)
+app.MapGroup("/api").MapIdentityApi<ApplicationUser>();
 
 app.MapBookEndpoints();
 app.MapMovieEndpoints();

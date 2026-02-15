@@ -1,10 +1,25 @@
 const BASE = '/api';
 
+function getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('tracker_token');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
     const res = await fetch(`${BASE}${url}`, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         ...options,
     });
+    if (res.status === 401) {
+        localStorage.removeItem('tracker_token');
+        localStorage.removeItem('tracker_email');
+        window.location.reload();
+        throw new Error('Session expired');
+    }
     if (!res.ok) {
         throw new Error(`API error: ${res.status} ${res.statusText}`);
     }
